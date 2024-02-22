@@ -5,7 +5,6 @@ import { ConfigModule } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
 import { WebsocketModule } from './websocket/websocket.module';
-import { EventGetway } from './websocket/events.getway';
 const ENV_PATH = '.development.env';
 
 @Module({
@@ -19,6 +18,6 @@ const ENV_PATH = '.development.env';
     WebsocketModule,
   ],
   controllers: [AppController],
-  providers: [AppService, EventGetway],
+  providers: [AppService],
 })
 export class AppModule {}

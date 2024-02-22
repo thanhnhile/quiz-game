@@ -4,7 +4,19 @@ import { EventGetway } from './events.getway';
 import { SERVICES } from 'src/utils/constants';
 
 @Module({
-  providers: [EventGetway],
-  exports: [EventGetway],
+  providers: [
+    EventGetway,
+    {
+      provide: SERVICES.GATEWAY_SESSION_MANAGER,
+      useClass: GatewaySessionManager,
+    },
+  ],
+  exports: [
+    EventGetway,
+    {
+      provide: SERVICES.GATEWAY_SESSION_MANAGER,
+      useClass: GatewaySessionManager,
+    },
+  ],
 })
 export class WebsocketModule {}
