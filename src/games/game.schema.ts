@@ -1,5 +1,5 @@
-import * as mongoose from 'mongoose';
-import { Connection } from 'mongoose';
+import * as mongoose from "mongoose";
+import { Connection } from "mongoose";
 
 export const GameSchema = new mongoose.Schema(
   {
@@ -10,21 +10,31 @@ export const GameSchema = new mongoose.Schema(
       unique: true,
       length: 6,
     },
-    questions_list_id: { type: mongoose.Schema.Types.ObjectId },
-    participants: { type: Array, default: [] },
+    questionList: {
+      type: mongoose.Types.ObjectId,
+      ref: "QuestionList",
+    },
+    participants: [
+      {
+        name: { type: String, require: true },
+        score: { type: Number, default: 0 },
+      },
+    ],
+    timeLimit: { type: String },
+    startDatetime: { type: Date },
+    endDatetime: { type: Date },
   },
   {
-    _id: false,
     versionKey: false,
-    timestamps: true, //add created_date, updated_date automatically
-  },
+    timestamps: true, //add createdAt, updatedAt automatically
+  }
 );
 
 export const GameProviders = [
   {
-    provide: 'GAME_MODEL',
+    provide: "GAME_MODEL",
     useFactory: (connection: Connection) =>
-      connection.model('Game', GameSchema),
-    inject: ['DATABASE_CONNECTION'],
+      connection.model("Game", GameSchema),
+    inject: ["DATABASE_CONNECTION"],
   },
 ];

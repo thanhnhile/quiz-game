@@ -14,6 +14,8 @@ import {
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets/interfaces/hooks';
+import { OnEvent } from '@nestjs/event-emitter';
+import { GAME_EVENTS } from 'src/utils/events';
 
 @WebSocketGateway()
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -34,20 +36,17 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('join')
   handleJoinGame(@MessageBody() data: any, @ConnectedSocket() client: Client) {
+    client.name = data.name;
     this.sessionManager.joinGame(data.code, client);
   }
 
-  @SubscribeMessage('newGame')
-  handleNewGame(@MessageBody() data: any, @ConnectedSocket() client: Client) {
-    this.sessionManager.createNewGame(this.server);
+  @OnEvent(GAME_EVENTS.EMITTER_EVENT.NEW_SESSTION)
+  handleNewGame(code: string) {
+    this.sessionManager.createNewGame(this.server, code);
   }
 
   @SubscribeMessage('startGame')
-  handleStartGame(@MessageBody() data: any, @ConnectedSocket() client: Client) {
+  handleStartGame(@MessageBody() data: any) {
     this.sessionManager.startGame(data.code);
-  }
-
-  logClient(client: Client) {
-    console.log({ id: client.id });
   }
 }

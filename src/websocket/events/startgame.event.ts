@@ -1,9 +1,11 @@
 import { clearInterval } from 'timers';
 import { GameSession } from '../models/gameSession';
+import { GAME_EVENTS } from 'src/utils/events';
+import { Question } from 'src/questions/questions.interface';
 
 export class StartGame {
   private game: GameSession;
-  private listQuestions: any[];
+  private listQuestions: Question[];
 
   private currentIndex = 0;
   private intervalId: NodeJS.Timeout;
@@ -11,7 +13,7 @@ export class StartGame {
 
   constructor(
     game: GameSession,
-    questions: any[],
+    questions: Question[],
     onEmitNextEventCb: Function,
   ) {
     this.game = game;
@@ -23,7 +25,7 @@ export class StartGame {
   private startEmittingEvent() {
     this.emitNextEvent();
 
-    const intervalId = setInterval(() => {
+    this.intervalId = setInterval(() => {
       this.emitNextEvent();
     }, 10000);
   }
@@ -33,10 +35,11 @@ export class StartGame {
       this.currentIndex > 0 &&
         this.onEmitNextEventCb(this.currentIndex.toString());
       const quizz = this.listQuestions[this.currentIndex];
-      this.game.emitEvent('quizzQuestion', quizz);
+      this.game.emitEvent(GAME_EVENTS.QUIZZ_QUESTIONS, quizz);
       this.currentIndex++;
     } else {
       clearInterval(this.intervalId);
+      this.game.emitEvent(GAME_EVENTS.TIME_OUT, 'Time out');
     }
   }
 }
