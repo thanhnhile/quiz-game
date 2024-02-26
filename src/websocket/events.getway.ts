@@ -17,7 +17,9 @@ import {
 import { OnEvent } from '@nestjs/event-emitter';
 import { GAME_EVENTS } from 'src/utils/events';
 
-@WebSocketGateway()
+@WebSocketGateway({
+  
+})
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
