@@ -1,13 +1,8 @@
-import { Socket } from 'socket.io';
+import { Socket } from "socket.io";
 
-export class Client extends Socket {
-  name: string;
-
-  // getName() {
-  //   return this.name;
-  // }
-
-  // setName(name: string) {
-  //   this.name = name;
-  // }
+class Client extends Socket {
+  // gameCode: string = this.handshake.query?.gameCode ?? '';
+  // name = this.handshake.query?.name;
 }
+
+export default Client;

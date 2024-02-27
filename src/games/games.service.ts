@@ -1,12 +1,9 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { GameCreateDto } from './dto/game.create.dto';
-import mongoose, { Model, ObjectId, now } from 'mongoose';
+import { GameCreateDto, GameJoinCreateDto } from './dto/game.create.dto';
+import mongoose, { Model, now } from 'mongoose';
 import { Game, Participant } from './game.interface';
-import { query } from 'express';
 import { GAME_EVENTS } from 'src/utils/events';
-import { GameJoinDto } from './dto/game.join.dto';
-import { Client } from 'src/websocket/models/client';
 
 @Injectable()
 export class GamesService {
@@ -25,7 +22,7 @@ export class GamesService {
     //validate
     //create game sesstion
     const code = this.generateCode();
-    this.eventEmitter.emit(GAME_EVENTS.EMITTER_EVENT.NEW_SESSTION, code);
+    this.eventEmitter.emit(GAME_EVENTS.EVENT_EMITTER.NEW_GAME_CREATED, code);
     //save to DB
     const model = new this.gameModel({
       code,
@@ -37,15 +34,28 @@ export class GamesService {
     return newGame;
   }
 
-  async addClient(code: string, client: Client) {
-    const newParticipant = {
-      name: client.name,
-      score: 0,
-    } as Participant;
-    const newGame = await this.gameModel.findOneAndUpdate(
-      { code },
-      { $push: { participants: newParticipant } },
-    );
+  async joinGame(gameJoinCreateDto: GameJoinCreateDto) {
+    const { name, code } = gameJoinCreateDto;
+    try {
+      const newParticipant = {
+        name,
+        score: 0,
+      } as Participant;
+      await this.gameModel.findOneAndUpdate(
+        { code },
+        { $push: { participants: newParticipant } },
+      );
+      const newJoinData = {
+        newParticipant,
+        code,
+      };
+      this.eventEmitter.emit(
+        GAME_EVENTS.EVENT_EMITTER.NEW_JOIN_CREATED,
+        newJoinData,
+      );
+    } catch (error) {
+      throw new NotFoundException('Game code does not exist');
+    }
   }
 
   async findByCode(code: string) {
@@ -55,6 +65,17 @@ export class GamesService {
       .exec();
     if (game) {
       return game;
+    }
+    throw new NotFoundException('Game code does not exist');
+  }
+
+  async getGameParticipants(code: string) {
+    const game = await this.gameModel
+      .findOne({ code })
+      .select('participants')
+      .exec();
+    if (game) {
+      return game.participants;
     }
     throw new NotFoundException('Game code does not exist');
   }

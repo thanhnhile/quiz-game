@@ -8,7 +8,7 @@ import {
 import { IGatewaySessionManager } from './gateway.session';
 import { Inject } from '@nestjs/common';
 import { SERVICES } from 'src/utils/constants';
-import { Client } from './models/client';
+import Client from './models/client';
 import { Server } from 'socket.io';
 import {
   OnGatewayConnection,
@@ -16,17 +16,25 @@ import {
 } from '@nestjs/websockets/interfaces/hooks';
 import { OnEvent } from '@nestjs/event-emitter';
 import { GAME_EVENTS } from 'src/utils/events';
+import { GamesService } from 'src/games/games.service';
+import { Game, Participant } from 'src/games/game.interface';
+import { StartGame } from './events/startgame.event';
 
 @WebSocketGateway({
-  
+  // namespace: "quiz-game",
+  cors: {
+    origin: 'http://localhost:3000',
+  },
+  transports: ['websocket', 'polling'],
 })
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  io: Server;
 
   constructor(
     @Inject(SERVICES.GATEWAY_SESSION_MANAGER)
     private sessionManager: IGatewaySessionManager,
+    private gameService: GamesService,
   ) {}
 
   handleDisconnect(client: Client) {
@@ -34,21 +42,61 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   }
   handleConnection(client: Client, ...args: any[]) {
     console.log('Connected from ', { id: client.id });
+    const gameCode = client.handshake.query.gameCode?.toString();
+    if (gameCode) {
+      this.sessionManager.joinGameSession(gameCode, client);
+      client.join(gameCode);
+      console.log(`Client ${client.id} has join game ${gameCode}`);
+    }
   }
 
-  @SubscribeMessage('join')
-  handleJoinGame(@MessageBody() data: any, @ConnectedSocket() client: Client) {
-    client.name = data.name;
-    this.sessionManager.joinGame(data.code, client);
+  @OnEvent(GAME_EVENTS.EVENT_EMITTER.NEW_JOIN_CREATED)
+  async handleNewJoinGame(newJoinData: {
+    code: string;
+    newParticipant: Participant;
+  }) {
+    const { code, newParticipant } = newJoinData;
+    this.io.to(code).emit(GAME_EVENTS.NEW_JOIN, newParticipant);
   }
 
-  @OnEvent(GAME_EVENTS.EMITTER_EVENT.NEW_SESSTION)
+  @OnEvent(GAME_EVENTS.EVENT_EMITTER.NEW_GAME_CREATED)
   handleNewGame(code: string) {
-    this.sessionManager.createNewGame(this.server, code);
+    this.sessionManager.addSession(code);
   }
 
   @SubscribeMessage('startGame')
-  handleStartGame(@MessageBody() data: any) {
-    this.sessionManager.startGame(data.code);
+  async handleStartGame(@MessageBody() data: any) {
+    const { code } = data;
+    const gameSession = this.sessionManager.getSession(data.code);
+    if (gameSession.getClients().length > 0) {
+      const gameModel: Game = await this.gameService.findByCode(code);
+      console.log(gameModel);
+      await this.gameService.updateStartDatetime(gameModel._id);
+      this.countDown(code, 5, () => {
+        new StartGame(
+          this.io.to(code),
+          gameModel.questionList.questionList,
+          (prevIndex) => {
+            this.io
+              .to(code)
+              .emit(
+                GAME_EVENTS.QUESTION_TIME_OUT,
+                `Time out for question ${prevIndex}`,
+              );
+          },
+        );
+      });
+    }
+  }
+
+  countDown(code, second: number, afterCb: Function) {
+    if (second == 0) {
+      afterCb();
+    } else {
+      this.io.to(code).emit(GAME_EVENTS.GAME_STARTING, second);
+      setTimeout(() => {
+        this.countDown(code, second - 1, afterCb);
+      }, 1000);
+    }
   }
 }

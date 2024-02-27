@@ -4,3 +4,8 @@ export interface GameCreateDto {
   timeLimit: string; // time limit for a session '1s/1m/1h'
   questionListId: string;
 }
+
+export interface GameJoinCreateDto {
+  code: string;
+  name: string;
+}

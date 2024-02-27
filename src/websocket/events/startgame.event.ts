@@ -1,21 +1,16 @@
-import { clearInterval } from 'timers';
-import { GameSession } from '../models/gameSession';
-import { GAME_EVENTS } from 'src/utils/events';
-import { Question } from 'src/questions/questions.interface';
+import { clearInterval } from "timers";
+// import { GameSession } from "../models/gameSession";
+import { GAME_EVENTS } from "src/utils/events";
 
 export class StartGame {
-  private game: GameSession;
-  private listQuestions: Question[];
+  private game: any;
+  private listQuestions: any[];
 
   private currentIndex = 0;
   private intervalId: NodeJS.Timeout;
   private onEmitNextEventCb: Function;
 
-  constructor(
-    game: GameSession,
-    questions: Question[],
-    onEmitNextEventCb: Function,
-  ) {
+  constructor(game: any, questions: any[], onEmitNextEventCb: Function) {
     this.game = game;
     this.listQuestions = questions;
     this.onEmitNextEventCb = onEmitNextEventCb;
@@ -35,11 +30,11 @@ export class StartGame {
       this.currentIndex > 0 &&
         this.onEmitNextEventCb(this.currentIndex.toString());
       const quizz = this.listQuestions[this.currentIndex];
-      this.game.emitEvent(GAME_EVENTS.QUIZZ_QUESTIONS, quizz);
+      this.game.emit(GAME_EVENTS.QUIZZ_QUESTIONS, quizz);
       this.currentIndex++;
     } else {
       clearInterval(this.intervalId);
-      this.game.emitEvent(GAME_EVENTS.TIME_OUT, 'Time out');
+      this.game.emit(GAME_EVENTS.TIME_OUT, "Time out");
     }
   }
 }
