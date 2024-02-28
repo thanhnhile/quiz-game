@@ -11,10 +11,10 @@ export class StartGame {
   private intervalId: NodeJS.Timeout;
   private onEmitNextEventCb: Function;
 
-  constructor(game: any, questions: any[], onEmitNextEventCb: Function) {
+  constructor(game: any, questions: any[], timeLimit, onEmitNextEventCb: Function) {
     this.game = game;
     this.listQuestions = questions;
-    this, (timeLimit = timeLimit);
+    this.timeLimit = this.timeLimit
     this.onEmitNextEventCb = onEmitNextEventCb;
     this.startEmittingEvent();
   }
@@ -43,7 +43,7 @@ export class StartGame {
 
 const getTimeLimitInSecond = (timeLimit: string) => {
   const unit = timeLimit.at(-1);
-  const value = Number.parseInt(timeLimit.slice(0, -1));
+  const value = Number.parseInt(timeLimit.slice(0, timeLimit.length - 1));
   switch (unit) {
     case "S":
       return value;

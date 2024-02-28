@@ -38,10 +38,23 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   handleDisconnect(client: Client) {
-    console.log('Disonnected from ', { id: client.id });
+    console.log("Disonnected from ", { id: client.id });
+    const gameCode = client.handshake.query.gameCode?.toString();
+    if (gameCode) {
+      this.sessionManager.leaveGameSession(gameCode, client.id);
+      client.leave(gameCode);
+      this.io.to(gameCode).emit(GAME_EVENTS.LEAVE, { clientId: client.id });
+      console.log(`Client ${client.id} has leave game ${gameCode}`);
+    }
   }
   handleConnection(client: Client, ...args: any[]) {
-    console.log('Connected from ', { id: client.id });
+    console.log("Connected from ", { id: client.id });
+    const gameCode = client.handshake.query.gameCode?.toString();
+    if (gameCode) {
+      this.sessionManager.joinGameSession(gameCode, client);
+      client.join(gameCode);
+      console.log(`Client ${client.id} has join game ${gameCode}`);
+    }
     const gameCode = client.handshake.query.gameCode?.toString();
     if (gameCode) {
       this.sessionManager.joinGameSession(gameCode, client);
@@ -64,30 +77,40 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
     this.sessionManager.addSession(code);
   }
 
-  @SubscribeMessage('startGame')
-  async handleStartGame(@MessageBody() data: any) {
-    const { code } = data;
-    const gameSession = this.sessionManager.getSession(data.code);
-    if (gameSession.getClients().length > 0) {
-      const gameModel: Game = await this.gameService.findByCode(code);
-      console.log(gameModel);
-      await this.gameService.updateStartDatetime(gameModel._id);
-      this.countDown(code, 5, () => {
-        new StartGame(
-          this.io.to(code),
-          gameModel.questionList.questionList,
-          (prevIndex) => {
-            this.io
-              .to(code)
-              .emit(
-                GAME_EVENTS.QUESTION_TIME_OUT,
-                `Time out for question ${prevIndex}`,
-              );
-          },
-        );
-      });
-    }
-  }
+   @OnEvent(GAME_EVENTS.EVENT_EMITTER.START)
+   async handleStartGame(@MessageBody() gameModel: Game) {
+     console.log(gameModel);
+     const { code } = gameModel;
+     const gameSession = this.sessionManager.getSession(code);
+     if (gameSession.getNumberOfClients() > 3) {
+       this.io.to(code).emit(GAME_EVENTS.START);
+       this.countDown(code, 5, () => {
+         new StartGame(
+           this.io.to(code),
+           gameModel.questionList.questionList,
+           gameModel.timeLimit,
+           (prevIndex) => {
+             this.io
+               .to(code)
+               .emit(
+                 GAME_EVENTS.QUESTION_TIME_OUT,
+                 `Time out for question ${prevIndex}`
+               );
+           }
+         );
+       });
+     }
+   }
+
+   countDown(code, second: number, afterCb: Function) {
+     if (second == 0) {
+       afterCb();
+     } else {
+       this.io.to(code).emit(GAME_EVENTS.GAME_STARTING, second);
+       setTimeout(() => {
+         this.countDown(code, second - 1, afterCb);
+       }, 1000);
+     }
 
   countDown(code, second: number, afterCb: Function) {
     if (second == 0) {

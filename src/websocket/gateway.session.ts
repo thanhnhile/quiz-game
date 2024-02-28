@@ -13,7 +13,11 @@ export interface IGatewaySessionManager {
 
   addSession(code: string);
 
-  joinGameSession(code: string, client: Client);
+    removeSesstion(code: string);
+
+    joinGameSession(code: string, client: Client);
+
+    leaveGameSession(code: string, clientId: string);
 }
 
 @Injectable()
@@ -37,4 +41,12 @@ export class GatewaySessionManager implements IGatewaySessionManager {
     const newSesstion = new GameSession(code);
     this.sessions.set(code, newSesstion);
   }
+   removeSesstion(code: string) {
+      const session = this.getSession(code);
+      this.sessions.delete(code);
+
+    leaveGameSession(code: string, clientId: string) {
+      const game = this.getSession(code);
+      game.removeClient(clientId);
+    }
 }
