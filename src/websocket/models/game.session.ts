@@ -11,15 +11,14 @@ class GameSession {
 
   getCode = () => this.code;
 
-  getClients = () => this.clients.values;
+  getNumberOfClients = () => this.clients.size;
 
   addClient(client: Client) {
     this.clients.set(client.id, client);
-    client.join(this.code);
   }
 
-  removeClient(client: Client) {
-    client.leave(this.code);
+  removeClient(clientId: string) {
+    this.clients.delete(clientId);
   }
 }
 

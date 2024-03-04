@@ -1,11 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-// import { GameSession } from "./models/gameSession";
-import { Namespace, Server } from "socket.io";
+import { Injectable } from "@nestjs/common";
 import Client from "./models/client";
-import { StartGame } from "./events/startgame.event";
-import { GAME_EVENTS } from "src/utils/events";
-import { GamesService } from "src/games/games.service";
-import { Game } from "src/games/game.interface";
 import GameSession from "./models/game.session";
 
 export interface IGatewaySessionManager {
@@ -13,20 +7,18 @@ export interface IGatewaySessionManager {
 
   addSession(code: string);
 
-    removeSesstion(code: string);
+  removeSesstion(code: string);
 
-    joinGameSession(code: string, client: Client);
+  joinGameSession(code: string, client: Client);
 
-    leaveGameSession(code: string, clientId: string);
+  leaveGameSession(code: string, clientId: string);
 }
 
 @Injectable()
 export class GatewaySessionManager implements IGatewaySessionManager {
   private readonly sessions: Map<string, GameSession> = new Map();
 
-  constructor(private gameService: GamesService) {}
-
-  getSession(code: string) {
+  getSession(code: string): GameSession {
     const session = this.sessions.get(code);
     if (session) return session;
     console.log("Game session is end or not exist");
@@ -41,12 +33,14 @@ export class GatewaySessionManager implements IGatewaySessionManager {
     const newSesstion = new GameSession(code);
     this.sessions.set(code, newSesstion);
   }
-   removeSesstion(code: string) {
-      const session = this.getSession(code);
-      this.sessions.delete(code);
 
-    leaveGameSession(code: string, clientId: string) {
-      const game = this.getSession(code);
-      game.removeClient(clientId);
-    }
+  removeSesstion(code: string) {
+    const session = this.getSession(code);
+    this.sessions.delete(code);
+  }
+
+  leaveGameSession(code: string, clientId: string) {
+    const game = this.getSession(code);
+    game.removeClient(clientId);
+  }
 }

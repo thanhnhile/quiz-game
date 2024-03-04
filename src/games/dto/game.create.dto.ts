@@ -9,3 +9,7 @@ export interface GameJoinCreateDto {
   code: string;
   name: string;
 }
+
+export interface GameStartCreateDto {
+  code: string;
+}

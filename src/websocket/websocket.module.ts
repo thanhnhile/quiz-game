@@ -5,7 +5,6 @@ import { SERVICES } from "src/utils/constants";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { GamesModule } from "src/games/games.module";
 import { GamesService } from "src/games/games.service";
-import { GameProviders } from "src/games/game.schema";
 
 @Module({
   imports: [EventEmitterModule.forRoot(), GamesModule],

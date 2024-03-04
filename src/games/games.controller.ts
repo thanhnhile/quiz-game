@@ -1,6 +1,10 @@
-import { Body, Controller, Post, Get, Param } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { GamesService } from "./games.service";
-import { GameCreateDto, GameJoinCreateDto } from "./dto/game.create.dto";
+import {
+  GameCreateDto,
+  GameJoinCreateDto,
+  GameStartCreateDto,
+} from "./dto/game.create.dto";
 @Controller("/")
 export class GamesController {
   constructor(private gameService: GamesService) {}
@@ -15,8 +19,13 @@ export class GamesController {
     return this.gameService.joinGame(gameJoinDto);
   }
 
-  @Get("/:code/paticipants")
-  getParticipants(@Param('code') code:string){
+  @Post("game/start")
+  startGame(@Body() gameStartDto: GameStartCreateDto) {
+    return this.gameService.startGame(gameStartDto);
+  }
+
+  @Get("game/:code/participants")
+  getParticipants(@Param("code") code: string) {
     return this.gameService.getGameParticipants(code);
   }
 }

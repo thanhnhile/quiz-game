@@ -15,5 +15,6 @@ export interface Question {
 
 export interface Option {
   readonly _id: string;
+  readonly id: string;
   readonly content: string;
 }
