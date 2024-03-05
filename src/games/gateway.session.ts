@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import Client from "./models/client";
-import GameSession from "./models/game.session";
+import { Injectable } from '@nestjs/common';
+import Client from '../websocket/models/client';
+import GameSession from '../websocket/models/game.session';
 
 export interface IGatewaySessionManager {
   getSession(code: string);
@@ -21,7 +21,7 @@ export class GatewaySessionManager implements IGatewaySessionManager {
   getSession(code: string): GameSession {
     const session = this.sessions.get(code);
     if (session) return session;
-    console.log("Game session is end or not exist");
+    console.log('Game session is end or not exist');
   }
 
   joinGameSession(code: string, client: Client) {

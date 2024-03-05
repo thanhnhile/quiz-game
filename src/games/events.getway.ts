@@ -1,33 +1,26 @@
 import {
-  ConnectedSocket,
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-} from "@nestjs/websockets";
-import { IGatewaySessionManager } from "./gateway.session";
-import { Inject } from "@nestjs/common";
-import { SERVICES } from "src/utils/constants";
-import Client from "./models/client";
-import { Server } from "socket.io";
+} from '@nestjs/websockets';
+import { IGatewaySessionManager } from './gateway.session';
+import { Inject } from '@nestjs/common';
+import { SERVICES } from 'src/utils/constants';
+import Client from '../websocket/models/client';
+import { Server } from 'socket.io';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from "@nestjs/websockets/interfaces/hooks";
-import { OnEvent } from "@nestjs/event-emitter";
-import { GAME_EVENTS } from "src/utils/events";
-import { GamesService } from "src/games/games.service";
-import { Game, Participant } from "src/games/game.interface";
-import { StartGame } from "./events/startgame.event";
-import { GameAnswerDto, GameRankingDto } from "./dtos";
+} from '@nestjs/websockets/interfaces/hooks';
+import { OnEvent } from '@nestjs/event-emitter';
+import { GAME_EVENTS } from 'src/utils/events';
+import { GamesService } from 'src/games/games.service';
+import { Game, Participant } from 'src/games/game.interface';
+import { StartGame } from './events/startgame.event';
+import { GameAnswerDto } from './game.dto';
 
-@WebSocketGateway({
-  // namespace: "quiz-game",
-  cors: {
-    origin: "http://localhost:3000",
-  },
-  transports: ["websocket", "polling"],
-})
+@WebSocketGateway()
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   io: Server;
@@ -35,11 +28,11 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     @Inject(SERVICES.GATEWAY_SESSION_MANAGER)
     private sessionManager: IGatewaySessionManager,
-    private gameService: GamesService
+    private gameService: GamesService,
   ) {}
 
   handleDisconnect(client: Client) {
-    console.log("Disonnected from ", { id: client.id });
+    console.log('Disonnected from ', { id: client.id });
     const gameCode = client.handshake.query.gameCode?.toString();
     if (gameCode) {
       this.sessionManager.leaveGameSession(gameCode, client.id);
@@ -49,10 +42,9 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
   handleConnection(client: Client, ...args: any[]) {
-    console.log("Connected from ", { id: client.id });
-    client.gameCode = client.handshake.query?.gameCode?.toString();
-    client.name = client.handshake.query?.clientName?.toString();
-    console.log(client.handshake.query);
+    console.log('Connected from ', { id: client.id });
+    console.log(client.handshake.auth);
+    console.log({ name: client.name, code: client.gameCode });
     if (client.gameCode) {
       this.sessionManager.joinGameSession(client.gameCode, client);
       client.join(client.gameCode);
@@ -103,7 +95,7 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
           gameModel.questionList.questionList,
           gameModel.timeLimit,
           async (hasNextQuestion: boolean) =>
-            await this.sendRankingBoard(code, hasNextQuestion)
+            await this.sendRankingBoard(code, hasNextQuestion),
         );
       });
     }

@@ -1,22 +1,22 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { EventEmitter2 } from "@nestjs/event-emitter";
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   GameCreateDto,
   GameJoinCreateDto,
   GameStartCreateDto,
-} from "./dto/game.create.dto";
-import mongoose, { Model, now } from "mongoose";
-import { Game, Participant } from "./game.interface";
-import { GAME_EVENTS } from "src/utils/events";
-import { GameAnswerDto, GameRankingDto } from "src/websocket/dtos";
-import { JwtService } from "@nestjs/jwt";
+} from './game.dto';
+import mongoose, { Model, now } from 'mongoose';
+import { Game, Participant } from './game.interface';
+import { GAME_EVENTS } from 'src/utils/events';
+import { GameAnswerDto } from './game.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class GamesService {
   constructor(
     private eventEmitter: EventEmitter2,
-    @Inject("GAME_MODEL") private gameModel: Model<Game>,
-    private jwtService: JwtService
+    @Inject('GAME_MODEL') private gameModel: Model<Game>,
+    private jwtService: JwtService,
   ) {}
 
   private generateCode(): string {
@@ -38,7 +38,12 @@ export class GamesService {
       participants: [],
     });
     const newGame = await model.save();
-    return newGame;
+    const payload = {
+      code,
+      isHost: true,
+    };
+    const accessToken = await this.jwtService.signAsync(payload);
+    return { accessToken, code };
   }
 
   async joinGame(gameJoinCreateDto: GameJoinCreateDto) {
@@ -50,7 +55,7 @@ export class GamesService {
       } as Participant;
       await this.gameModel.findOneAndUpdate(
         { code },
-        { $push: { participants: newParticipant } }
+        { $push: { participants: newParticipant } },
       );
       const newJoinData = {
         newParticipant,
@@ -58,10 +63,13 @@ export class GamesService {
       };
       this.eventEmitter.emit(
         GAME_EVENTS.EVENT_EMITTER.NEW_JOIN_CREATED,
-        newJoinData
+        newJoinData,
       );
-      const accessToken = await this.jwtService.signAsync(gameJoinCreateDto);
-      return { accessToken };
+      const accessToken = await this.jwtService.signAsync({
+        code,
+        name,
+      });
+      return { accessToken, name };
     } catch (error) {
       throw error;
     }
@@ -86,41 +94,41 @@ export class GamesService {
       .findOne({
         code: gameAnswerDto.code,
       })
-      .populate("questionList")
-      .$where("_id === gameAnswerDto.questionId");
+      .populate('questionList')
+      .$where('_id === gameAnswerDto.questionId');
     const updateGame: Game = await this.gameModel.findOneAndUpdate(
       {
         code: gameAnswerDto.code,
-        "participants.name": gameAnswerDto.participantName,
+        'participants.name': gameAnswerDto.participantName,
       },
       {
-        $inc: { "participants.$.score": gameAnswerDto.score },
+        $inc: { 'participants.$.score': gameAnswerDto.score },
       },
-      { new: true }
+      { new: true },
     );
-    console.log("UPDATED GAME: ", updateGame);
+    console.log('UPDATED GAME: ', updateGame);
   }
 
   async findByCode(code: string) {
     const game = await this.gameModel
       .findOne({ code })
-      .populate("questionList")
+      .populate('questionList')
       .exec();
     if (game) {
       return game;
     }
-    throw new NotFoundException("Game code does not exist");
+    throw new NotFoundException('Game code does not exist');
   }
 
   async getGameParticipants(code: string) {
     const game = await this.gameModel
       .findOne({ code })
-      .select("participants")
+      .select('participants')
       .exec();
     if (game) {
       return game.participants;
     }
-    throw new NotFoundException("Game code does not exist");
+    throw new NotFoundException('Game code does not exist');
   }
 
   async updateStartDatetime(id: string) {
