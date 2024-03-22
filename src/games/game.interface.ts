@@ -11,7 +11,6 @@ export interface Game extends Document {
   readonly code: string;
   readonly questionList: QuestionList;
   readonly participants: [Participant];
-  readonly timeLimit: string;
   readonly startDatetime: Date;
   readonly endDatetime: Date;
 }

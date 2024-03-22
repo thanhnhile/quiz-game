@@ -10,7 +10,9 @@ export interface Question {
   readonly content: string;
   readonly image: string;
   readonly options: [Option];
-  readonly answer: string;
+  readonly answerId: string;
+  readonly timeLimit: string;
+  readonly score: number;
 }
 
 export interface Option {

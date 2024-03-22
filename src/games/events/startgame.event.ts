@@ -1,72 +1,42 @@
+import { Question } from "src/questions/questions.interface";
 import { GAME_EVENTS } from "src/utils/events";
+import { getTimeLimitInSecond } from "src/utils/constants";
 
 export class StartGame {
   private game: any;
-  private listQuestions: any[];
-  private timeLimitForEachQuestion: number;
+  private listQuestions: Question[];
 
-  private currentIndex = 0;
   private timeoutId: NodeJS.Timeout;
   private onEmitNextEventCb: Function;
 
-  constructor(
-    game: any,
-    questions: any[],
-    timeLimit: string,
-    onEmitNextEventCb: Function
-  ) {
+  constructor(game: any, questions: any[], onEmitNextEventCb: Function) {
     this.game = game;
     this.listQuestions = questions;
-    this.timeLimitForEachQuestion = Math.floor(
-      getTimeLimitInSecond(timeLimit) / this.listQuestions.length
-    );
     this.onEmitNextEventCb = onEmitNextEventCb;
-    this.startEmittingEvent();
   }
 
-  private startEmittingEvent() {
-    this.emitEvent();
-  }
-
-  private emitEvent() {
-    clearTimeout(this.timeoutId);
-    const quizz = this.listQuestions[this.currentIndex];
-    this.game.emit(GAME_EVENTS.QUIZZ_QUESTIONS, quizz);
+  emitEvent(currentIndex) {
+    this.timeoutId && clearTimeout(this.timeoutId);
+    const question = this.listQuestions[currentIndex];
+    this.game.emit(GAME_EVENTS.QUIZZ_QUESTIONS, question);
+    console.log("limit: ", question);
     this.timeoutId = setTimeout(() => {
-      this.handleTimeout();
-    }, this.timeLimitForEachQuestion);
+      this.handleTimeout(currentIndex);
+    }, getTimeLimitInSecond(question.timeLimit));
   }
 
-  private async handleTimeout() {
+  private async handleTimeout(currentIndex) {
     this.game.emit(
       GAME_EVENTS.QUESTION_TIME_OUT,
-      `Time out for question ${this.currentIndex.toString()}`
+      `Time out for question ${currentIndex.toString()}`
     );
-    this.currentIndex++;
-    const hasNextQuestion = this.currentIndex < this.listQuestions.length;
-    await this.onEmitNextEventCb(hasNextQuestion);
-    clearTimeout(this.timeoutId);
+    const hasNextQuestion = currentIndex < this.listQuestions.length - 1;
     if (hasNextQuestion) {
-      this.timeoutId = setTimeout(() => {
-        this.emitEvent();
-      }, 5000);
+      await this.onEmitNextEventCb(true);
     } else {
+      await this.onEmitNextEventCb(false);
       this.game.emit(GAME_EVENTS.TIME_OUT, "Time out");
       clearTimeout(this.timeoutId);
     }
   }
 }
-
-const getTimeLimitInSecond = (timeLimit: string) => {
-  const length = timeLimit.length;
-  const unit = timeLimit.at(length - 1);
-  const value = Number.parseInt(timeLimit.slice(0, length - 1)) * 1000;
-  switch (unit) {
-    case "S":
-      return value;
-    case "M":
-      return value * 60;
-    case "H":
-      return value * 3600;
-  }
-};

@@ -1,25 +1,25 @@
-import { INestApplication } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { IoAdapter } from '@nestjs/platform-socket.io';
-import { Server } from 'socket.io';
-import Client from './websocket/models/client';
+import { INestApplication } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
+import { IoAdapter } from "@nestjs/platform-socket.io";
+import { Server } from "socket.io";
+import Client from "./websocket/models/client";
 
 class SocketIOAdapter extends IoAdapter {
   constructor(
     private app: INestApplication,
-    private configService: ConfigService,
+    private configService: ConfigService
   ) {
     super(app);
   }
 
   createIOServer(port: number, options?: any) {
-    const clientPort = this.configService.get<number>('CLIENT_PORT');
+    const clientPort = this.configService.get<number>("CLIENT_PORT");
     const cors = {
       cors: {
         origin: `http://localhost:${clientPort}`,
       },
-      transports: ['websocket', 'polling'],
+      transports: ["websocket", "polling"],
     };
     const optionsWithCORS = {
       ...options,
@@ -28,7 +28,7 @@ class SocketIOAdapter extends IoAdapter {
     const jwtService = this.app.get(JwtService);
     const server: Server = super.createIOServer(port, optionsWithCORS);
 
-    server.of('/').use(createTokenMiddleware(jwtService));
+    server.of("/").use(createTokenMiddleware(jwtService));
 
     return server;
   }
@@ -37,18 +37,19 @@ class SocketIOAdapter extends IoAdapter {
 const createTokenMiddleware = (jwtService: JwtService) => {
   return (client: Client, next) => {
     const token =
-      client.handshake.auth.token || client.handshake.headers['token'];
+      client.handshake.auth.token || client.handshake.headers["token"];
     try {
       if (token) {
         const payload = jwtService.verify(token);
-        console.log('PAYLOAD: ', payload);
+        console.log("PAYLOAD: ", payload);
         client.name = payload.name;
         client.gameCode = payload.code;
+        client.isHost = payload.isHost;
       }
       next();
     } catch (error) {
       console.log(error);
-      next(new Error('FORBIDDEN'));
+      next(new Error("FORBIDDEN"));
     }
   };
 };

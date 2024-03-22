@@ -1,8 +1,11 @@
 import Client from "./client";
+import { StartGame } from "src/games/events/startgame.event";
 
 class GameSession {
   private code: string;
   private clients: Map<string, Client>;
+  private currentIndex: number;
+  startEvent: StartGame;
 
   constructor(code: string) {
     this.code = code;
@@ -19,6 +22,13 @@ class GameSession {
 
   removeClient(clientId: string) {
     this.clients.delete(clientId);
+  }
+
+  updateCurrentIndex() {
+    this.currentIndex =
+      this.currentIndex === undefined ? 0 : this.currentIndex + 1;
+    console.log(this.currentIndex);
+    this.startEvent.emitEvent(this.currentIndex);
   }
 }
 

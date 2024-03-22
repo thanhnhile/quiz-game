@@ -1,7 +1,6 @@
 export interface GameCreateDto {
   startDatetime: string | null;
   endDatetime: string | null;
-  timeLimit: string; // time limit for a session '1s/1m/1h'
   questionListId: string;
 }
 
@@ -15,15 +14,17 @@ export interface GameStartCreateDto {
 }
 
 export interface GameAnswerDto {
-  code: string;
-  participantName: string;
   questionId: string;
-  score: number;
-  timestamp: number;
+  answerId: string;
+  responeTimestamp: number;
 }
 
 export interface GameRankingDto {
   code: string;
   participants: [{ name: string; score: number; _id: string }];
   currentQuestionId: string;
+}
+
+export interface RequestNextQuestionDto {
+  currentIndex: number;
 }

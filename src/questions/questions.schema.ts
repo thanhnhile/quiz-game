@@ -22,10 +22,12 @@ export const QuestionListSchema = new mongoose.Schema(
             },
           },
         ],
-        answer: {
+        timeLimit: { type: String, required: true },
+        answerId: {
           type: String,
           required: true,
         },
+        score: { type: Number, default: 1000 },
       },
     ],
   },

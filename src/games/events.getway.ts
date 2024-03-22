@@ -1,24 +1,29 @@
 import {
+  ConnectedSocket,
   MessageBody,
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-} from '@nestjs/websockets';
-import { IGatewaySessionManager } from './gateway.session';
-import { Inject } from '@nestjs/common';
-import { SERVICES } from 'src/utils/constants';
-import Client from '../websocket/models/client';
-import { Server } from 'socket.io';
+} from "@nestjs/websockets";
+import { IGatewaySessionManager } from "./gateway.session";
+import {
+  Inject,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { SERVICES } from "src/utils/constants";
+import Client from "../websocket/models/client";
+import { Server } from "socket.io";
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from '@nestjs/websockets/interfaces/hooks';
-import { OnEvent } from '@nestjs/event-emitter';
-import { GAME_EVENTS } from 'src/utils/events';
-import { GamesService } from 'src/games/games.service';
-import { Game, Participant } from 'src/games/game.interface';
-import { StartGame } from './events/startgame.event';
-import { GameAnswerDto } from './game.dto';
+} from "@nestjs/websockets/interfaces/hooks";
+import { OnEvent } from "@nestjs/event-emitter";
+import { GAME_EVENTS } from "src/utils/events";
+import { GamesService } from "src/games/games.service";
+import { Game, Participant } from "src/games/game.interface";
+import { StartGame } from "./events/startgame.event";
+import { GameAnswerDto, RequestNextQuestionDto } from "./game.dto";
 
 @WebSocketGateway()
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -28,23 +33,22 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     @Inject(SERVICES.GATEWAY_SESSION_MANAGER)
     private sessionManager: IGatewaySessionManager,
-    private gameService: GamesService,
+    private gameService: GamesService
   ) {}
 
   handleDisconnect(client: Client) {
-    console.log('Disonnected from ', { id: client.id });
-    const gameCode = client.handshake.query.gameCode?.toString();
-    if (gameCode) {
-      this.sessionManager.leaveGameSession(gameCode, client.id);
-      client.leave(gameCode);
-      this.io.to(gameCode).emit(GAME_EVENTS.LEAVE, { clientId: client.id });
-      console.log(`Client ${client.id} has leave game ${gameCode}`);
+    console.log("Disonnected from ", { id: client.id });
+    if (client.gameCode) {
+      this.sessionManager.leaveGameSession(client.gameCode, client.id);
+      client.leave(client.gameCode);
+      this.io
+        .to(client.gameCode)
+        .emit(GAME_EVENTS.LEAVE, { clientId: client.id });
+      console.log(`Client ${client.id} has leave game ${client.gameCode}`);
     }
   }
   handleConnection(client: Client, ...args: any[]) {
-    console.log('Connected from ', { id: client.id });
-    console.log(client.handshake.auth);
-    console.log({ name: client.name, code: client.gameCode });
+    console.log("Connected from ", { id: client.id });
     if (client.gameCode) {
       this.sessionManager.joinGameSession(client.gameCode, client);
       client.join(client.gameCode);
@@ -67,8 +71,12 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage(GAME_EVENTS.RECEIVE_ANSWER)
-  handleReceiveAnswer(@MessageBody() answerDto: GameAnswerDto) {
-    this.gameService.submitAnswer(answerDto);
+  handleReceiveAnswer(
+    @MessageBody() answerDto: GameAnswerDto,
+    @ConnectedSocket() client: Client
+  ) {
+    !client.isHost &&
+      this.gameService.submitAnswer(client.gameCode, client.name, answerDto);
   }
 
   async sendRankingBoard(code: string, hasNextQuestion: boolean) {
@@ -86,18 +94,28 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   @OnEvent(GAME_EVENTS.EVENT_EMITTER.START)
   async handleStartGame(@MessageBody() gameModel: Game) {
     const { code } = gameModel;
+    console.log(gameModel);
     const gameSession = this.sessionManager.getSession(code);
     if (gameSession.getNumberOfClients() > 0) {
       this.io.to(code).emit(GAME_EVENTS.START);
+      gameSession.startEvent = new StartGame(
+        this.io.to(code),
+        gameModel.questionList.questionList,
+        async (hasNextQuestion: boolean) =>
+          await this.sendRankingBoard(code, hasNextQuestion)
+      );
       this.countDown(code, 5, () => {
-        new StartGame(
-          this.io.to(code),
-          gameModel.questionList.questionList,
-          gameModel.timeLimit,
-          async (hasNextQuestion: boolean) =>
-            await this.sendRankingBoard(code, hasNextQuestion),
-        );
+        gameSession.updateCurrentIndex();
       });
+    }
+  }
+  @SubscribeMessage(GAME_EVENTS.NEXT_QUESTION)
+  handleNextQuestion(@ConnectedSocket() client: Client) {
+    if (client.isHost) {
+      const gameSession = this.sessionManager.getSession(client.gameCode);
+      gameSession.updateCurrentIndex();
+    } else {
+      throw new UnauthorizedException("Need host permission");
     }
   }
 

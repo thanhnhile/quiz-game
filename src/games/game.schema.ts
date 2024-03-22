@@ -20,7 +20,6 @@ export const GameSchema = new mongoose.Schema(
         score: { type: Number, default: 0 },
       },
     ],
-    timeLimit: { type: String },
     startDatetime: { type: Date },
     endDatetime: { type: Date },
   },
