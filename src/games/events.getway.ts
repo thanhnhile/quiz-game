@@ -4,26 +4,26 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-} from "@nestjs/websockets";
-import { IGatewaySessionManager } from "./gateway.session";
+} from '@nestjs/websockets';
+import { IGatewaySessionManager } from './gateway.session';
 import {
   Inject,
   NotFoundException,
   UnauthorizedException,
-} from "@nestjs/common";
-import { SERVICES } from "src/utils/constants";
-import Client from "../websocket/models/client";
-import { Server } from "socket.io";
+} from '@nestjs/common';
+import { SERVICES } from 'src/utils/constants';
+import Client from '../websocket/models/client';
+import { Server } from 'socket.io';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from "@nestjs/websockets/interfaces/hooks";
-import { OnEvent } from "@nestjs/event-emitter";
-import { GAME_EVENTS } from "src/utils/events";
-import { GamesService } from "src/games/games.service";
-import { Game, Participant } from "src/games/game.interface";
-import { StartGame } from "./events/startgame.event";
-import { GameAnswerDto, RequestNextQuestionDto } from "./game.dto";
+} from '@nestjs/websockets/interfaces/hooks';
+import { OnEvent } from '@nestjs/event-emitter';
+import { GAME_EVENTS } from 'src/utils/events';
+import { GamesService } from 'src/games/games.service';
+import { Game, Participant } from 'src/games/game.interface';
+import { StartGame } from './events/startgame.event';
+import { GameAnswerDto } from './game.dto';
 
 @WebSocketGateway()
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -33,22 +33,22 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     @Inject(SERVICES.GATEWAY_SESSION_MANAGER)
     private sessionManager: IGatewaySessionManager,
-    private gameService: GamesService
+    private gameService: GamesService,
   ) {}
 
   handleDisconnect(client: Client) {
-    console.log("Disonnected from ", { id: client.id });
+    console.log('Disonnected from ', { id: client.id });
     if (client.gameCode) {
       this.sessionManager.leaveGameSession(client.gameCode, client.id);
       client.leave(client.gameCode);
-      this.io
-        .to(client.gameCode)
-        .emit(GAME_EVENTS.LEAVE, { clientId: client.id });
-      console.log(`Client ${client.id} has leave game ${client.gameCode}`);
+      this.io.to(client.gameCode).emit(GAME_EVENTS.LEAVE, client.name);
+      console.log(`Client ${client.name} has leave game ${client.gameCode}`);
+      ///remove database
+      this.gameService.leaveGame(client.gameCode, client.name);
     }
   }
   handleConnection(client: Client, ...args: any[]) {
-    console.log("Connected from ", { id: client.id });
+    console.log('Connected from ', { id: client.id });
     if (client.gameCode) {
       this.sessionManager.joinGameSession(client.gameCode, client);
       client.join(client.gameCode);
@@ -73,7 +73,7 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage(GAME_EVENTS.RECEIVE_ANSWER)
   handleReceiveAnswer(
     @MessageBody() answerDto: GameAnswerDto,
-    @ConnectedSocket() client: Client
+    @ConnectedSocket() client: Client,
   ) {
     !client.isHost &&
       this.gameService.submitAnswer(client.gameCode, client.name, answerDto);
@@ -102,7 +102,7 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
         this.io.to(code),
         gameModel.questionList.questionList,
         async (hasNextQuestion: boolean) =>
-          await this.sendRankingBoard(code, hasNextQuestion)
+          await this.sendRankingBoard(code, hasNextQuestion),
       );
       this.countDown(code, 5, () => {
         gameSession.updateCurrentIndex();
@@ -115,7 +115,7 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
       const gameSession = this.sessionManager.getSession(client.gameCode);
       gameSession.updateCurrentIndex();
     } else {
-      throw new UnauthorizedException("Need host permission");
+      throw new UnauthorizedException('Need host permission');
     }
   }
 

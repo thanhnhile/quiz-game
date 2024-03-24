@@ -1,23 +1,23 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { EventEmitter2 } from "@nestjs/event-emitter";
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   GameCreateDto,
   GameJoinCreateDto,
   GameStartCreateDto,
-} from "./game.dto";
-import mongoose, { Model, now } from "mongoose";
-import { Game, Participant } from "./game.interface";
-import { GAME_EVENTS } from "src/utils/events";
-import { GameAnswerDto } from "./game.dto";
-import { JwtService } from "@nestjs/jwt";
-import { getTimeLimitInSecond } from "src/utils/constants";
+} from './game.dto';
+import mongoose, { Model, now } from 'mongoose';
+import { Game, Participant } from './game.interface';
+import { GAME_EVENTS } from 'src/utils/events';
+import { GameAnswerDto } from './game.dto';
+import { JwtService } from '@nestjs/jwt';
+import { getTimeLimitInSecond } from 'src/utils/constants';
 
 @Injectable()
 export class GamesService {
   constructor(
     private eventEmitter: EventEmitter2,
-    @Inject("GAME_MODEL") private gameModel: Model<Game>,
-    private jwtService: JwtService
+    @Inject('GAME_MODEL') private gameModel: Model<Game>,
+    private jwtService: JwtService,
   ) {}
 
   private generateCode(): string {
@@ -55,7 +55,7 @@ export class GamesService {
       } as Participant;
       await this.gameModel.findOneAndUpdate(
         { code },
-        { $push: { participants: newParticipant } }
+        { $push: { participants: newParticipant } },
       );
       const newJoinData = {
         newParticipant,
@@ -63,7 +63,7 @@ export class GamesService {
       };
       this.eventEmitter.emit(
         GAME_EVENTS.EVENT_EMITTER.NEW_JOIN_CREATED,
-        newJoinData
+        newJoinData,
       );
       const accessToken = await this.jwtService.signAsync({
         code,
@@ -73,6 +73,17 @@ export class GamesService {
       return { accessToken, name, code };
     } catch (error) {
       throw error;
+    }
+  }
+
+  async leaveGame(code: string, clientName: string) {
+    try {
+      return await this.gameModel.findOneAndUpdate(
+        { code },
+        { $pull: { participants: { name: clientName } } },
+      );
+    } catch (err) {
+      console.log(err);
     }
   }
 
@@ -93,48 +104,48 @@ export class GamesService {
   async submitAnswer(code, participantName, gameAnswerDto: GameAnswerDto) {
     const game = await this.findByCode(code);
     const question = game.questionList.questionList.find(
-      (item) => item._id.toString() === gameAnswerDto.questionId
+      (item) => item._id.toString() === gameAnswerDto.questionId,
     );
     if (question.answerId == gameAnswerDto.answerId) {
       const timeLimitInMilisecond = getTimeLimitInSecond(question.timeLimit);
       const score = Math.floor(
         question.score *
-          (1 - gameAnswerDto.responeTimestamp / (2 * timeLimitInMilisecond))
+          (1 - gameAnswerDto.responeTimestamp / (2 * timeLimitInMilisecond)),
       );
       const updateGame: Game = await this.gameModel.findOneAndUpdate(
         {
           code,
-          "participants.name": participantName,
+          'participants.name': participantName,
         },
         {
-          $inc: { "participants.$.score": score },
+          $inc: { 'participants.$.score': score },
         },
-        { new: true }
+        { new: true },
       );
-      console.log("UPDATED GAME: ", updateGame);
+      console.log('UPDATED GAME: ', updateGame);
     }
   }
 
   async findByCode(code: string): Promise<Game> {
     const game = await this.gameModel
       .findOne({ code })
-      .populate("questionList")
+      .populate('questionList')
       .exec();
     if (game) {
       return game;
     }
-    throw new NotFoundException("Game code does not exist");
+    throw new NotFoundException('Game code does not exist');
   }
 
   async getGameParticipants(code: string) {
     const game = await this.gameModel
       .findOne({ code })
-      .select("participants")
+      .select('participants')
       .exec();
     if (game) {
       return game.participants;
     }
-    throw new NotFoundException("Game code does not exist");
+    throw new NotFoundException('Game code does not exist');
   }
 
   async updateStartDatetime(id: string) {
