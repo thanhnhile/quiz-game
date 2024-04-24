@@ -24,6 +24,7 @@ import { GamesService } from 'src/games/games.service';
 import { Game, Participant } from 'src/games/game.interface';
 import { StartGame } from './events/startgame.event';
 import { GameAnswerDto } from './game.dto';
+import { hasUncaughtExceptionCaptureCallback } from 'process';
 
 @WebSocketGateway()
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -94,15 +95,18 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   @OnEvent(GAME_EVENTS.EVENT_EMITTER.START)
   async handleStartGame(@MessageBody() gameModel: Game) {
     const { code } = gameModel;
-    console.log(gameModel);
     const gameSession = this.sessionManager.getSession(code);
     if (gameSession.getNumberOfClients() > 0) {
+      this.gameService.updateStartDatetime(gameModel._id);
       this.io.to(code).emit(GAME_EVENTS.START);
       gameSession.startEvent = new StartGame(
         this.io.to(code),
         gameModel.questionList.questionList,
-        async (hasNextQuestion: boolean) =>
+        async (hasNextQuestion: boolean) => {
           await this.sendRankingBoard(code, hasNextQuestion),
+            !hasNextQuestion &&
+              this.gameService.updateEndDatetime(gameModel._id);
+        },
       );
       this.countDown(code, 5, () => {
         gameSession.updateCurrentIndex();

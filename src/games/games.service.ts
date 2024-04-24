@@ -1,4 +1,11 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   GameCreateDto,
@@ -29,25 +36,40 @@ export class GamesService {
   async createNewGameSession(gameCreateDto: GameCreateDto) {
     //validate
     //create game sesstion
-    const code = this.generateCode();
-    this.eventEmitter.emit(GAME_EVENTS.EVENT_EMITTER.NEW_GAME_CREATED, code);
-    //save to DB
-    const model = new this.gameModel({
-      code,
-      questionList: new mongoose.Types.ObjectId(gameCreateDto.questionListId),
-      participants: [],
-    });
-    const newGame = await model.save();
-    const payload = {
-      code,
-      isHost: true,
-    };
-    const accessToken = await this.jwtService.signAsync(payload);
-    return { accessToken, code };
+    try {
+      const code = this.generateCode();
+      this.eventEmitter.emit(GAME_EVENTS.EVENT_EMITTER.NEW_GAME_CREATED, code);
+      //save to DB
+      const model = new this.gameModel({
+        code,
+        questionList: new mongoose.Types.ObjectId(gameCreateDto.questionListId),
+        participants: [],
+      });
+      const newGame = await model.save();
+      const payload = {
+        code,
+        isHost: true,
+      };
+      const accessToken = await this.jwtService.signAsync(payload);
+      return { accessToken, code };
+    } catch (error) {
+      throw new HttpException(
+        'Error during create new game session',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   async joinGame(gameJoinCreateDto: GameJoinCreateDto) {
     const { name, code } = gameJoinCreateDto;
+    const participants = await this.getGameParticipants(code);
+    const existName = participants?.find(
+      (participant) => participant.name === name,
+    );
+    if (existName)
+      throw new BadRequestException(
+        'Name is existed. Please choose another name!',
+      );
     try {
       const newParticipant = {
         name,
@@ -72,7 +94,10 @@ export class GamesService {
       });
       return { accessToken, name, code };
     } catch (error) {
-      throw error;
+      throw new HttpException(
+        error?.message ?? 'Error during join game session',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -82,8 +107,11 @@ export class GamesService {
         { code },
         { $pull: { participants: { name: clientName } } },
       );
-    } catch (err) {
-      console.log(err);
+    } catch (error) {
+      throw new HttpException(
+        error?.message ?? 'Error during leave game session',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -103,26 +131,33 @@ export class GamesService {
 
   async submitAnswer(code, participantName, gameAnswerDto: GameAnswerDto) {
     const game = await this.findByCode(code);
-    const question = game.questionList.questionList.find(
-      (item) => item._id.toString() === gameAnswerDto.questionId,
-    );
-    if (question.answerId == gameAnswerDto.answerId) {
-      const timeLimitInMilisecond = getTimeLimitInSecond(question.timeLimit);
-      const score = Math.floor(
-        question.score *
-          (1 - gameAnswerDto.responeTimestamp / (2 * timeLimitInMilisecond)),
+    try {
+      const question = game.questionList.questionList.find(
+        (item) => item._id.toString() === gameAnswerDto.questionId,
       );
-      const updateGame: Game = await this.gameModel.findOneAndUpdate(
-        {
-          code,
-          'participants.name': participantName,
-        },
-        {
-          $inc: { 'participants.$.score': score },
-        },
-        { new: true },
+      if (question.answerId == gameAnswerDto.answerId) {
+        const timeLimitInMilisecond = getTimeLimitInSecond(question.timeLimit);
+        const score = Math.floor(
+          question.score *
+            (1 - gameAnswerDto.responeTimestamp / (2 * timeLimitInMilisecond)),
+        );
+        const updateGame: Game = await this.gameModel.findOneAndUpdate(
+          {
+            code,
+            'participants.name': participantName,
+          },
+          {
+            $inc: { 'participants.$.score': score },
+          },
+          { new: true },
+        );
+        console.log('UPDATED GAME: ', updateGame);
+      }
+    } catch (error) {
+      throw new HttpException(
+        error?.message ?? 'Unexpected error when checking answer',
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
-      console.log('UPDATED GAME: ', updateGame);
     }
   }
 
@@ -150,5 +185,9 @@ export class GamesService {
 
   async updateStartDatetime(id: string) {
     await this.gameModel.findByIdAndUpdate(id, { startDatetime: now() });
+  }
+
+  async updateEndDatetime(id: string) {
+    await this.gameModel.findByIdAndUpdate(id, { endDatetime: now() });
   }
 }
