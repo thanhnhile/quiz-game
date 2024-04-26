@@ -72,12 +72,15 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage(GAME_EVENTS.RECEIVE_ANSWER)
-  handleReceiveAnswer(
+  async handleReceiveAnswer(
     @MessageBody() answerDto: GameAnswerDto,
     @ConnectedSocket() client: Client,
   ) {
-    !client.isHost &&
-      this.gameService.submitAnswer(client.gameCode, client.name, answerDto);
+    if(!client.isHost){
+      const score = await this.gameService.submitAnswer(client.gameCode, client.name, answerDto);
+      client.latestScore = score;
+    }
+      
   }
 
   async sendRankingBoard(code: string, hasNextQuestion: boolean) {
