@@ -151,7 +151,7 @@ export class GamesService {
           },
           { new: true },
         );
-        console.log('UPDATED GAME: ', updateGame);
+        return score;
       }
     } catch (error) {
       throw new HttpException(
