@@ -4,7 +4,7 @@ class Client extends Socket {
   gameCode: string;
   name: string;
   isHost: boolean;
-  lastestScore: number;
+  latestScore: number;
 }
 
 export default Client;
