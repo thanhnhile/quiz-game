@@ -24,7 +24,6 @@ import { GamesService } from 'src/games/games.service';
 import { Game, Participant } from 'src/games/game.interface';
 import { StartGame } from './events/startgame.event';
 import { GameAnswerDto } from './game.dto';
-import { hasUncaughtExceptionCaptureCallback } from 'process';
 
 @WebSocketGateway()
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
@@ -86,8 +85,7 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
     const sortedData = currentParticipants.sort((a, b) => b.score - a.score);
     const rankingData = {
       hasNextQuestion,
-      top3: sortedData.slice(0, 2),
-      others: sortedData.slice(3),
+      data: sortedData,
     };
     this.io.to(code).emit(GAME_EVENTS.UPDATE_RANKING, rankingData);
   }
@@ -108,9 +106,11 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
               this.gameService.updateEndDatetime(gameModel._id);
         },
       );
-      this.countDown(code, 5, () => {
-        gameSession.updateCurrentIndex();
-      });
+      setTimeout(() => {
+        this.countDown(code, 5, () => {
+          gameSession.updateCurrentIndex();
+        });
+      }, 3000);
     }
   }
   @SubscribeMessage(GAME_EVENTS.NEXT_QUESTION)
