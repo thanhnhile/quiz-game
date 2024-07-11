@@ -73,7 +73,8 @@ export class GamesService {
     try {
       const newParticipant = {
         name,
-        score: 0,
+        totalScore: 0,
+        lastestScore: 0,
       } as Participant;
       await this.gameModel.findOneAndUpdate(
         { code },
@@ -147,11 +148,12 @@ export class GamesService {
             'participants.name': participantName,
           },
           {
-            $inc: { 'participants.$.score': score },
+            $inc: { 'participants.$.totalScore': score },
+            $set: { 'participants.$.lastestScore': score },
           },
           { new: true },
         );
-        return score;
+        return updateGame;
       }
     } catch (error) {
       throw new HttpException(

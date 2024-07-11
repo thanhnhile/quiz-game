@@ -1,9 +1,10 @@
-import mongoose from "mongoose";
-import { QuestionList } from "src/questions/questions.interface";
+import mongoose from 'mongoose';
+import { QuestionList } from 'src/questions/questions.interface';
 
 export type Participant = {
   name: string;
-  score: number;
+  totalScore: number;
+  lastestScore: number;
 };
 
 export interface Game extends Document {
