@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import Client from '../websocket/models/client';
 import GameSession from '../websocket/models/game.session';
+import { WsException } from '@nestjs/websockets';
 
 export interface IGatewaySessionManager {
   getSession(code: string);
@@ -21,7 +22,7 @@ export class GatewaySessionManager implements IGatewaySessionManager {
   getSession(code: string): GameSession {
     const session = this.sessions.get(code);
     if (session) return session;
-    console.log('Game session is end or not exist');
+    throw new WsException('Game session is end or not exist');
   }
 
   joinGameSession(code: string, client: Client) {

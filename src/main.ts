@@ -4,6 +4,7 @@ import { log } from 'console';
 import { ValidationPipe } from '@nestjs/common';
 import SocketIOAdapter from './socket-io-adapter';
 import { ConfigService } from '@nestjs/config';
+import { GlobalExceptionFilter } from './GlobalExceptionFilter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -20,6 +21,7 @@ async function bootstrap() {
       transform: true,
     }),
   );
+  app.useGlobalFilters(new GlobalExceptionFilter());
   const configService = app.get(ConfigService);
   app.useWebSocketAdapter(new SocketIOAdapter(app, configService));
   await app.listen(process.env.PORT);

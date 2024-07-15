@@ -9,9 +9,11 @@ export const GAME_EVENTS = {
   RECEIVE_ANSWER: 'receive_answer',
   UPDATE_RANKING: 'update_ranking',
   TIME_OUT: 'time_out',
+  ERROR: 'error',
   EVENT_EMITTER: {
     NEW_GAME_CREATED: 'game.new',
     NEW_JOIN_CREATED: 'game.join',
     START: 'game.start',
+    ERROR: 'error',
   },
 };

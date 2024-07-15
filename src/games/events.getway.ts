@@ -4,13 +4,10 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
+  WsException,
 } from '@nestjs/websockets';
 import { IGatewaySessionManager } from './gateway.session';
-import {
-  Inject,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, UseFilters } from '@nestjs/common';
 import { SERVICES } from 'src/utils/constants';
 import Client from '../websocket/models/client';
 import { Server } from 'socket.io';
@@ -24,8 +21,11 @@ import { GamesService } from 'src/games/games.service';
 import { Game, Participant } from 'src/games/game.interface';
 import { StartGame } from './events/startgame.event';
 import { GameAnswerDto } from './game.dto';
+import { WsExceptionFilter } from 'src/GlobalExceptionFilter';
+// import { WebSocketExceptionFilter } from './WebSocketExceptionFilter';
 
 @WebSocketGateway()
+// @UseFilters(new WsExceptionFilter())
 export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   io: Server;
@@ -49,6 +49,7 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   }
   handleConnection(client: Client, ...args: any[]) {
     console.log('Connected from ', { id: client.id });
+
     if (client.gameCode) {
       this.sessionManager.joinGameSession(client.gameCode, client);
       client.join(client.gameCode);
@@ -68,6 +69,11 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
   @OnEvent(GAME_EVENTS.EVENT_EMITTER.NEW_GAME_CREATED)
   handleNewGame(code: string) {
     this.sessionManager.addSession(code);
+  }
+
+  @OnEvent(GAME_EVENTS.EVENT_EMITTER.ERROR)
+  handleError(error: { code: string; msg: string }) {
+    this.io.to(error.code).emit(GAME_EVENTS.ERROR, error.msg);
   }
 
   @SubscribeMessage(GAME_EVENTS.RECEIVE_ANSWER)
@@ -94,6 +100,7 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
       hasNextQuestion,
       data: sortedData,
     };
+    console.log(rankingData);
     this.io.to(code).emit(GAME_EVENTS.UPDATE_RANKING, rankingData);
   }
 
@@ -126,7 +133,7 @@ export class EventGetway implements OnGatewayConnection, OnGatewayDisconnect {
       const gameSession = this.sessionManager.getSession(client.gameCode);
       gameSession.updateCurrentIndex();
     } else {
-      throw new UnauthorizedException('Need host permission');
+      throw new WsException('Need host permission');
     }
   }
 
